@@ -9,9 +9,10 @@ import (
 
 func main() {
 	coordinator := coordinator.NewCoordinator()
-	coordinator.AddNode("localhost:3000")
-	coordinator.AddNode("localhost:3001")
-	coordinator.AddNode("localhost:3002")
+	coordinator.AddNode("localhost:3000", 2)
+	// coordinator.AddNode("localhost:3001", 2)A
+	coordinator.AddNode("localhost:3002", 2)
+	coordinator.StartFailureDetection()
 
 	http.HandleFunc("/get", func(w http.ResponseWriter, r *http.Request) {
 		key := r.URL.Query().Get("key")
@@ -37,6 +38,7 @@ func main() {
 		key := r.URL.Query().Get("key")
 		value := r.URL.Query().Get("value")
 		nodeAddress := coordinator.RouteRequest(key)
+		log.Println("Node address", nodeAddress)
 		resp, err := http.Get("http://" + nodeAddress + "/setdata?key=" + key + "&value=" + value)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)

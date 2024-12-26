@@ -1,33 +1,56 @@
 package store
 
-import "sync"
+import (
+	"log"
+	"sync"
+)
 
 type Store struct {
-	data map[string]string
-	mu   sync.RWMutex
+	cacheMap    map[string]*Node
+	capacity    int
+	currentSize int
+	cacheList   *DoublyLinkedList
+	mu          sync.RWMutex
 }
 
-func NewStore() *Store {
+func NewStore(capacity int) *Store {
 	return &Store{
-		data: make(map[string]string),
+		cacheMap:    make(map[string]*Node),
+		capacity:    capacity,
+		currentSize: 0,
+		cacheList:   &DoublyLinkedList{},
 	}
 }
 
 func (s *Store) Get(key string) (string, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	value, ok := s.data[key]
-	return value, ok
+	if s.cacheMap[key] == nil {
+		node := s.cacheMap[key]
+		s.cacheList.moveToFront(node)
+		return node.value, true
+	}
+	return "", false
 }
 
-func (s *Store) Set(key, value string) {
+func (s *Store) Set(key, value string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.data[key] = value
-}
-
-func (s *Store) Delete(key string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.data, key)
+	if s.cacheMap[key] != nil {
+		node := s.cacheMap[key]
+		node.value = value
+		s.cacheList.moveToFront(node)
+	} else {
+		newnode := &Node{key: key, value: value, prev: nil, next: nil}
+		s.cacheMap[key] = newnode
+		s.cacheList.addToFront(newnode)
+		s.currentSize++
+		if s.currentSize > s.capacity {
+			deletnode := s.cacheList.removeTail()
+			delete(s.cacheMap, deletnode.key)
+			s.currentSize--
+		}
+	}
+	log.Print(s.currentSize)
+	return true
 }

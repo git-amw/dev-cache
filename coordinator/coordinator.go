@@ -1,25 +1,27 @@
 package coordinator
 
 import (
-	"github/git-amw/devcache/cacheNode"
+	"github/git-amw/devcache/clustorNode"
 	"github/git-amw/devcache/hashing"
 	"log"
 	"net/http"
+	"time"
 )
 
 type Coordinator struct {
 	ring       *hashing.HashRing
-	servernode map[string]*cachenode.Node
+	servernode map[string]*clustorNode.ClustorNode
 }
 
 func NewCoordinator() *Coordinator {
 	return &Coordinator{
 		ring:       hashing.NewHashRing(),
-		servernode: make(map[string]*cachenode.Node),
+		servernode: make(map[string]*clustorNode.ClustorNode),
 	}
 }
 
 func (c *Coordinator) StartFailureDetection() {
+	log.Println("Starting failure detection")
 	go func() {
 		for {
 			for address := range c.servernode {
@@ -29,6 +31,7 @@ func (c *Coordinator) StartFailureDetection() {
 					c.RemoveNode(address)
 				}
 			}
+			time.Sleep(5 * time.Second)
 		}
 	}()
 }
@@ -38,8 +41,8 @@ func (c *Coordinator) RemoveNode(address string) {
 	c.ring.RemoveNode(address)
 }
 
-func (c *Coordinator) AddNode(address string) {
-	node := cachenode.NewNode(address)
+func (c *Coordinator) AddNode(address string, capacity int) {
+	node := clustorNode.NewNode(address, capacity)
 	c.ring.AddNode(address)
 	c.servernode[address] = node
 	go node.Start()
